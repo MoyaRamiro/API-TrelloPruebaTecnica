@@ -5,16 +5,16 @@ import {
   OnGatewayInit,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { v4 as uuidv4 } from 'uuid';
-import { BoardData } from '../types/boardData';
+import { BoardService } from '../services/board.service';
+import { Boards } from '../schemas/board.schema';
+import { BoardData } from 'src/types/boardData';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
-    methods: ['GET', 'POST'],
-    credentials: true,
   },
 })
 export class EventsGateway
@@ -22,46 +22,16 @@ export class EventsGateway
 {
   @WebSocketServer() server: Server;
 
-  boardDataArray: BoardData[] = [
-    {
-      id: uuidv4(),
-      title: 'Board 1',
-      elements: [
-        { id: uuidv4(), name: 'Estudiar', isChecked: false },
-        { id: uuidv4(), name: 'Trabajar', isChecked: false },
-        { id: uuidv4(), name: 'Hacer ejercicio', isChecked: true },
-        { id: uuidv4(), name: 'Comprar comida', isChecked: true },
-      ],
-    },
-    {
-      id: uuidv4(),
-      title: 'Board 2',
-      elements: [
-        { id: uuidv4(), name: 'Hacer prueba tecnica', isChecked: false },
-        { id: uuidv4(), name: 'Producir', isChecked: false },
-        { id: uuidv4(), name: 'Bailar zamba', isChecked: true },
-        { id: uuidv4(), name: 'Jugar videojuegos', isChecked: false },
-      ],
-    },
-    {
-      id: uuidv4(),
-      title: 'Board 3',
-      elements: [
-        { id: uuidv4(), name: 'Salir al parque', isChecked: true },
-        { id: uuidv4(), name: 'Ver pelicula', isChecked: true },
-        { id: uuidv4(), name: 'Andar a caballo', isChecked: true },
-        { id: uuidv4(), name: 'Maradona', isChecked: true },
-      ],
-    },
-  ];
+  constructor(private readonly boardService: BoardService) {}
 
-  afterInit(server: Server) {
+  async afterInit(server: Server) {
+    await this.boardService.initializeDefaultBoards();
     console.log('WebSocket initialized');
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
-    this.server.emit('initialBoardData', this.boardDataArray);
+    this.server.emit('initialBoardData', await this.boardService.findAll());
   }
 
   handleDisconnect(client: Socket) {
@@ -69,9 +39,16 @@ export class EventsGateway
   }
 
   @SubscribeMessage('boardUpdate')
-  handleMessage(client: Socket, data: { boardData: BoardData[] }): void {
+  async handleMessage(@MessageBody() data: { boardData: BoardData[] }) {
     console.log('Datos recibidos:', data);
-    this.boardDataArray = data.boardData;
-    this.server.emit('boardUpdate', data.boardData);
+
+    await this.boardService.update(data.boardData);
+
+    console.log(
+      'Datos guardados en MongoDB',
+      await this.boardService.findAll(),
+    );
+
+    return await this.boardService.findAll();
   }
 }
