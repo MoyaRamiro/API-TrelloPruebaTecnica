@@ -1,7 +1,13 @@
 import { Module } from '@nestjs/common';
 import { EventsModule } from './events/events.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [EventsModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    EventsModule,
+  ],
 })
 export class AppModule {}
