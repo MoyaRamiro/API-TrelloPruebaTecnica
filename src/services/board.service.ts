@@ -29,8 +29,9 @@ export class BoardService {
   }
 
   async initializeDefaultBoards() {
-    const count = await this.boardsModel.countDocuments().exec();
-    if (count === 0) {
+    const result = await this.boardsModel.find();
+
+    if (result.length === 0) {
       const defaultBoards = [
         {
           id: uuidv4(),
